@@ -1,0 +1,57 @@
+# =========================
+# Secrets / Credentials
+# =========================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.kdbx
+pgpass.conf
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# =========================
+# Local runtime artifacts
+# =========================
+*.log
+logs/
+data/raw/
+data/processed/
+data/logs/
+
+# Local databases / dumps / backups
+*.db
+*.sqlite
+*.sqlite3
+*.sql.bak
+*.dump
+*.bak
+
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+.vscode/launch.json
