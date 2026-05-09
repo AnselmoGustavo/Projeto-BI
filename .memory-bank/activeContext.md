@@ -5,8 +5,8 @@
 *Status: INITIALIZED*
 
 ## Current Phase
-**Phase**: START → Transitioning to RESEARCH
-**Mode**: Initialization complete, ready for Phase 3 (DW Development)
+**Phase**: DEVELOPMENT
+**Mode**: Fase 4 com ETL funcional e repositório higienizado
 
 ## Project State
 
@@ -18,46 +18,30 @@
 - [x] Schema SQL pronto
 - [x] ETL template pronto
 - [x] Memory Bank inicializado
+- [x] Banco PostgreSQL configurado e validado
+- [x] Schema executado e tabelas criadas
+- [x] ETL piloto executado com sucesso
+- [x] .gitignore criado e arquivos sensíveis protegidos
 
 ### 🔄 In Progress
 - [ ] Fase 3: Desenvolvimento do DW (até 13/05/2026)
-  - [ ] Criar banco PostgreSQL
-  - [ ] Executar schema SQL
-  - [ ] Validar estrutura
+  - [x] Criar banco PostgreSQL
+  - [x] Executar schema SQL
+  - [x] Validar estrutura
+  - [ ] Ajustes finais de documentação e apresentação
   
-### ⏳ Upcoming
-- [ ] Fase 4: ETL Implementation (14/05 - 01/06/2026)
-- [ ] Fase 5: Dashboards (02/06 - 24/06/2026)
-- [ ] Fase 6: Apresentação (24/06 e 29/06/2026)
-
-## Key Decisions Made
-1. **SGBD**: PostgreSQL (melhor que SQLite para volume)
-2. **Modelo**: Dimensional (Star Schema)
-3. **Linguagem ETL**: Python (comunidade, bibliotecas)
-4. **Data Sources**: API + Scraping (máxima cobertura)
-5. **Framework**: CursorRIPER (workflow estruturado)
 
 ## Risk Assessment
-| Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|-----------|
 | Rate limiting da API | Alta | Média | Implementar delays, retry logic |
 | Dados históricos limitados | Média | Média | Usar dados disponíveis, documentar |
 | Scraping quebrar | Média | Alta | Monitorar, criar testes |
 | Performance queries | Baixa | Média | Índices estratégicos, particionamento |
 | Falta de dados | Baixa | Alta | Validação rigorosa, logging |
-
-## Team Coordination
-- **Ana Beatriz**: Lead de BI/Análise
 - **Gustavo**: Backend/ETL
 - **Nicole**: Front-end/Dashboards
-- **Thiago**: DevOps/Database
-
-## Next Immediate Actions
-1. **TODAY**: Criar banco PostgreSQL steam_dw
-2. **TODAY**: Executar schema_steam_dw.sql
-3. **TOMORROW**: Testar conectores de dados (piloto com 10 jogos)
-4. **THIS WEEK**: Implementar transformações
-5. **NEXT WEEK**: Primeira carga completa
+4. **THIS WEEK**: Definir KPIs e layout dos painéis
+5. **NEXT WEEK**: Preparar materiais de apresentação
 
 ## Blockers / Challenges
 - ⚠️ Steam API key needed (obtenível online)

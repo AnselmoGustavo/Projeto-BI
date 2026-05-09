@@ -6,7 +6,7 @@ Atualize este documento a cada entrega relevante.
 ## 1) Resumo Executivo
 - Projeto: Analise de Dados Brasileiros da Steam (Business Intelligence)
 - Objetivo: Construir um Data Warehouse + ETL + Dashboards para suporte a decisao
-- Status atual: Fase 4 em andamento (ETL funcional e validado em piloto)
+- Status atual: Fase 4 em andamento (ETL funcional, validado em piloto e repositório higienizado)
 
 ## 2) Escopo das Fases
 - Fase 1: Definicao do negocio e problema (concluida)
@@ -83,6 +83,12 @@ Fluxo atual:
 ### 5.3 Compatibilidade tecnica resolvida
 - Driver de banco migrado para psycopg v3 (compatibilidade com Python 3.14)
 - Ajuste de endpoint/fonte para lista de apps devido a indisponibilidade de rota antiga
+
+### 5.4 Higiene do repositório
+- Criação de .gitignore para arquivos sensíveis e gerados localmente
+- Sanitização de .env.example para remover senha real
+- Remoção de __pycache__ e arquivos .pyc do índice do Git
+- Configuração do nome e email globais do Git para commits
 
 ## 6) Evidencia de validacao (piloto)
 Ultima validacao executada:
@@ -192,3 +198,12 @@ Modelo:
   - Selecao incremental por rotacao de app_id com base no ultimo processado
   - Execucoes de validacao concluidas com sucesso
 - Impacto: Pipeline pronto para rotina sem reprocessamento full a cada execucao
+
+### 2026-05-08
+- Tipo: Higiene do repositório
+- Arquivos alterados: .gitignore, .env.example, arquivos de cache removidos do índice
+- Resultado:
+  - Arquivos sensiveis e artefatos gerados ignorados corretamente
+  - .env.example mantido como template seguro
+  - Repositorio limpo e pronto para novos commits
+- Impacto: Redução de risco de vazamento de credenciais e ruído no versionamento

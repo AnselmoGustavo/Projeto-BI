@@ -5,7 +5,7 @@
 
 ## Phase 3: Desenvolvimento e Construção do DW
 **Target Date**: 13/05/2026  
-**Status**: 🔄 IN PROGRESS
+**Status**: ✅ COMPLETED
 
 ### Tasks
 
@@ -16,23 +16,23 @@
 - [x] Índices planejados
 
 #### Subtask 3.2: Criação de Tabelas ⏳
-- [ ] Executar script schema_steam_dw.sql
-- [ ] Validar criação de dim_jogos
-- [ ] Validar criação de player_metrics
-- [ ] Validar criação de price_history
-- [ ] Validar criação de update_frequency
-- [ ] Validar criação de etl_log
-- [ ] Testar views SQL
+- [x] Executar script schema_steam_dw.sql
+- [x] Validar criação de dim_jogos
+- [x] Validar criação de player_metrics
+- [x] Validar criação de price_history
+- [x] Validar criação de update_frequency
+- [x] Validar criação de etl_log
+- [x] Testar views SQL
 
 **Estimated Time**: 30 minutos  
 **Difficulty**: 🟢 Baixo
 
 #### Subtask 3.3: Validação de Schema
-- [ ] Verificar chaves primárias
-- [ ] Verificar chaves estrangeiras
-- [ ] Verificar índices
-- [ ] Testar constraints
-- [ ] Validar tipos de dados
+- [x] Verificar chaves primárias
+- [x] Verificar chaves estrangeiras
+- [x] Verificar índices
+- [x] Testar constraints
+- [x] Validar tipos de dados
 
 **Estimated Time**: 1 hora  
 **Difficulty**: 🟡 Médio
@@ -41,49 +41,49 @@
 
 ## Phase 4: Implementação do Processo de ETL
 **Target Date**: 14/05/2026 - 01/06/2026  
-**Status**: ⏳ UPCOMING
+**Status**: 🔄 IN PROGRESS
 
 ### Tasks
 
 #### Subtask 4.1: Extração de Dados
-- [ ] Implementar conectores Steam API
-- [ ] Implementar scraper SteamCharts
+- [x] Implementar conectores Steam API
+- [x] Implementar scraper SteamCharts
 - [ ] Implementar scraper SteamDB
-- [ ] Testar com 10 games (piloto)
-- [ ] Implementar rate limiting
-- [ ] Implementar tratamento de erros
+- [x] Testar com 10 games (piloto)
+- [x] Implementar rate limiting
+- [x] Implementar tratamento de erros
 
 **Estimated Time**: 3 dias  
 **Difficulty**: 🟡 Médio
 
 #### Subtask 4.2: Transformação de Dados
-- [ ] Implementar data cleaner
-- [ ] Implementar data validator
-- [ ] Implementar data normalizer
-- [ ] Testar limpeza de dados
-- [ ] Testar validações
-- [ ] Documentar regras de transformação
+- [x] Implementar data cleaner
+- [x] Implementar data validator
+- [x] Implementar data normalizer
+- [x] Testar limpeza de dados
+- [x] Testar validações
+- [x] Documentar regras de transformação
 
 **Estimated Time**: 2 dias  
 **Difficulty**: 🟡 Médio
 
 #### Subtask 4.3: Carregamento de Dados
-- [ ] Implementar database loader
-- [ ] Implementar UPSERT logic
-- [ ] Implementar logging
-- [ ] Testar carga completa
-- [ ] Implementar tratamento de duplicatas
-- [ ] Implementar rollback em caso de erro
+- [x] Implementar database loader
+- [x] Implementar UPSERT logic
+- [x] Implementar logging
+- [x] Testar carga completa
+- [x] Implementar tratamento de duplicatas
+- [x] Implementar rollback em caso de erro
 
 **Estimated Time**: 2 dias  
 **Difficulty**: 🟡 Médio
 
 #### Subtask 4.4: Orquestração & Scheduling
-- [ ] Criar main.py orquestrador
+- [x] Criar main.py orquestrador
 - [ ] Configurar scheduler (APScheduler)
-- [ ] Implementar retry logic
-- [ ] Configurar logging centralizado
-- [ ] Testar pipeline completo
+- [x] Implementar retry logic
+- [x] Configurar logging centralizado
+- [x] Testar pipeline completo
 
 **Estimated Time**: 1 dia  
 **Difficulty**: 🟡 Médio
@@ -191,7 +191,9 @@
 - ✅ START Phase completado
 - ✅ Memory Bank inicializado
 - ✅ Documentação base criada
-- 🔄 Pronto para Fase 3
+- ✅ Fase 3 concluída
+- ✅ ETL piloto funcional
+- ✅ Repositório higienizado e pronto para commits
 
 ---
 
