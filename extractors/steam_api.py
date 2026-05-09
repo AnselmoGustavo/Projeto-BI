@@ -12,6 +12,31 @@ class SteamApiExtractor:
         self.session.headers.update({"User-Agent": "Steam-BI-ETL/1.0"})
 
     def list_app_ids(self, max_items: int = 100) -> List[int]:
+        # Primary source: complete Steam app catalog, then slice by max_items.
+        all_apps_url = f"{api_config.steam_api_base_url}/ISteamApps/GetAppList/v2/"
+        response = self.session.get(all_apps_url, timeout=api_config.timeout_seconds)
+        if response.status_code == 200:
+            apps = response.json().get("applist", {}).get("apps", [])
+            ids = sorted({app.get("appid") for app in apps if app.get("appid")})
+            if ids:
+                return ids[:max_items]
+
+        # Fallback source: SteamSpy catalog (public, up to ~1000 ids/page).
+        steamspy_url = "https://steamspy.com/api.php?request=all"
+        response = self.session.get(steamspy_url, timeout=api_config.timeout_seconds)
+        if response.status_code == 200:
+            payload = response.json()
+            ids = sorted(
+                {
+                    int(app_id)
+                    for app_id in payload.keys()
+                    if str(app_id).isdigit()
+                }
+            )
+            if ids:
+                return ids[:max_items]
+
+        # Secondary source: most played list (usually capped around 100).
         most_played_url = f"{api_config.steam_api_base_url}/ISteamChartsService/GetMostPlayedGames/v1/"
         response = self.session.get(most_played_url, timeout=api_config.timeout_seconds)
         if response.status_code == 200:

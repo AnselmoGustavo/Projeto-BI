@@ -9,6 +9,7 @@ from loaders.postgres_loader import PostgresLoader
 from transformers.steam_transformer import (
     build_dim_jogos_row,
     build_player_metrics_row_enriched,
+    build_player_metrics_history_rows,
     build_price_history_row,
     build_update_frequency_row,
 )
@@ -46,7 +47,9 @@ def run_etl(limit: int, mode: str = "incremental") -> None:
 
     try:
         logger.info("Fetching app list (limit=%s, mode=%s)", limit, mode)
-        app_ids = extractor.list_app_ids(max_items=max(limit * 8, limit))
+        app_pool_size = max(limit * 50, 5000) if mode == "incremental" else max(limit * 8, limit)
+        app_ids = extractor.list_app_ids(max_items=app_pool_size)
+        logger.info("App id pool fetched: %s", len(app_ids))
 
         if mode == "incremental":
             metadata = loader.get_etl_metadata(data_source="steam_api")
@@ -74,6 +77,7 @@ def run_etl(limit: int, mode: str = "incremental") -> None:
 
                 dim_rows.append(build_dim_jogos_row(app_id, details))
                 metric_rows.append(build_player_metrics_row_enriched(app_id, current_players, charts_metrics))
+                metric_rows.extend(build_player_metrics_history_rows(app_id, charts_metrics))
                 price_rows.append(build_price_history_row(app_id, details))
                 update_rows.append(build_update_frequency_row(app_id, details))
             except Exception as app_err:
@@ -124,7 +128,7 @@ def run_etl(limit: int, mode: str = "incremental") -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Steam BI ETL Pilot")
-    parser.add_argument("--limit", type=int, default=30, help="Number of games to load")
+    parser.add_argument("--limit", type=int, default=200, help="Number of games to load")
     parser.add_argument(
         "--mode",
         choices=["incremental", "full"],

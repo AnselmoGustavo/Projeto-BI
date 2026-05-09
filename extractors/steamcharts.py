@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import Dict, Optional
 
 import requests
@@ -15,10 +16,13 @@ class SteamChartsExtractor:
     def _to_int(value: str) -> Optional[int]:
         if value is None:
             return None
-        cleaned = value.replace(",", "").replace(".", "").strip()
-        if not cleaned or not cleaned.lstrip("-").isdigit():
+        cleaned = value.replace(",", "").strip()
+        if not cleaned:
             return None
-        return int(cleaned)
+        try:
+            return int(round(float(cleaned)))
+        except ValueError:
+            return None
 
     @staticmethod
     def _to_float(value: str) -> Optional[float]:
@@ -29,6 +33,17 @@ class SteamChartsExtractor:
             return float(cleaned)
         except ValueError:
             return None
+
+    @staticmethod
+    def _parse_month_label(label: str):
+        cleaned = re.sub(r"\s+", " ", (label or "").strip())
+        for fmt in ("%B %Y", "%b %Y"):
+            try:
+                parsed = datetime.strptime(cleaned, fmt)
+                return parsed.date().replace(day=1)
+            except ValueError:
+                continue
+        return None
 
     def fetch_metrics(self, app_id: int) -> Dict[str, Optional[float]]:
         url = f"https://steamcharts.com/app/{app_id}"
@@ -41,6 +56,7 @@ class SteamChartsExtractor:
                 "all_time_peak": None,
                 "gain": None,
                 "percent_gain": None,
+                "monthly_history": [],
             }
 
         html = response.text
@@ -49,17 +65,43 @@ class SteamChartsExtractor:
         peak_24h = self._to_int(summary_matches[0]) if len(summary_matches) > 0 else None
         all_time_peak = self._to_int(summary_matches[1]) if len(summary_matches) > 1 else None
 
-        row_pattern = re.compile(
-            r"<tr>\s*<td>[^<]+</td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>\s*<td>([^<]+)</td>",
-            re.IGNORECASE,
+        history_pattern = re.compile(
+            r"<tr[^>]*>\s*"
+            r"<td[^>]*>(.*?)</td>\s*"
+            r"<td[^>]*>([^<]+)</td>\s*"
+            r"<td[^>]*>([^<]+)</td>\s*"
+            r"<td[^>]*>([^<]+)</td>\s*"
+            r"<td[^>]*>([^<]+)</td>",
+            re.IGNORECASE | re.DOTALL,
         )
-        row_match = row_pattern.search(html)
+        monthly_history = []
+        parsed_rows = []
+        for label, avg, gain_value, pct, peak in history_pattern.findall(html):
+            label_clean = re.sub(r"<[^>]+>", " ", label)
+            label_clean = re.sub(r"\s+", " ", label_clean).strip()
+            parsed_rows.append((label_clean, avg, gain_value, pct, peak))
 
-        if row_match:
-            avg_players = self._to_int(row_match.group(1))
-            gain = self._to_int(row_match.group(3))
-            percent_gain = self._to_float(row_match.group(4))
-            peak_players = self._to_int(row_match.group(2))
+        for label_clean, avg, gain_value, pct, peak in parsed_rows:
+            month_date = self._parse_month_label(label_clean)
+            if not month_date:
+                continue
+            monthly_history.append(
+                {
+                    "date": month_date,
+                    "avg_players": self._to_int(avg),
+                    "peak_players": self._to_int(peak),
+                    "gain": self._to_int(gain_value),
+                    "percent_gain": self._to_float(pct),
+                }
+            )
+
+        # The first parsed row is typically "Last 30 Days" and serves as the latest snapshot.
+        if parsed_rows:
+            _, avg, gain_value, pct, peak = parsed_rows[0]
+            avg_players = self._to_int(avg)
+            gain = self._to_int(gain_value)
+            percent_gain = self._to_float(pct)
+            peak_players = self._to_int(peak)
         else:
             avg_players = None
             gain = None
@@ -73,4 +115,5 @@ class SteamChartsExtractor:
             "all_time_peak": all_time_peak,
             "gain": gain,
             "percent_gain": percent_gain,
+            "monthly_history": monthly_history,
         }

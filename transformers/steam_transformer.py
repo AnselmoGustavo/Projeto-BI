@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 def _parse_release_date(raw: Dict[str, Any]) -> Optional[date]:
@@ -33,9 +33,27 @@ def build_dim_jogos_row(app_id: int, details: Dict[str, Any]) -> Tuple:
     developers = ", ".join(details.get("developers") or [])
     publishers = ", ".join(details.get("publishers") or [])
     genres = ", ".join([g.get("description", "") for g in (details.get("genres") or []) if g.get("description")])
+    categories = ", ".join(
+        [c.get("description", "") for c in (details.get("categories") or []) if c.get("description")]
+    )
 
     platforms_obj = details.get("platforms") or {}
     platforms = ", ".join([name for name, enabled in platforms_obj.items() if enabled])
+    supported_languages = details.get("supported_languages")
+    short_description = details.get("short_description")
+    metacritic_score = (details.get("metacritic") or {}).get("score")
+    required_age = details.get("required_age")
+    coming_soon = (details.get("release_date") or {}).get("coming_soon")
+
+    try:
+        metacritic_score = int(metacritic_score) if metacritic_score is not None else None
+    except (TypeError, ValueError):
+        metacritic_score = None
+
+    try:
+        required_age = int(required_age) if required_age is not None and str(required_age) != "" else None
+    except (TypeError, ValueError):
+        required_age = None
 
     return (
         app_id,
@@ -48,6 +66,12 @@ def build_dim_jogos_row(app_id: int, details: Dict[str, Any]) -> Tuple:
         genres or None,
         None,
         platforms or None,
+        short_description or None,
+        supported_languages or None,
+        categories or None,
+        metacritic_score,
+        required_age,
+        bool(coming_soon) if coming_soon is not None else None,
     )
 
 
@@ -85,10 +109,49 @@ def build_player_metrics_row_enriched(
     )
 
 
+def build_player_metrics_history_rows(app_id: int, charts: Optional[Dict[str, Any]]) -> List[Tuple]:
+    charts = charts or {}
+    rows: List[Tuple] = []
+    for item in charts.get("monthly_history", []) or []:
+        metric_date = item.get("date")
+        if not metric_date:
+            continue
+        rows.append(
+            (
+                app_id,
+                metric_date,
+                None,
+                item.get("avg_players"),
+                item.get("peak_players"),
+                None,
+                None,
+                item.get("gain"),
+                item.get("percent_gain"),
+            )
+        )
+    return rows
+
+
 def build_price_history_row(app_id: int, details: Dict[str, Any]) -> Tuple:
+    price_overview = details.get("price_overview", {})
     price = _to_price_brl(details)
-    initial = details.get("price_overview", {}).get("initial")
-    final = details.get("price_overview", {}).get("final")
+    initial = price_overview.get("initial")
+    final = price_overview.get("final")
+    currency = (price_overview.get("currency") or "BRL").upper()
+
+    initial_price = None
+    final_price = None
+    if initial is not None:
+        try:
+            initial_price = (Decimal(initial) / Decimal("100")).quantize(Decimal("0.01"))
+        except (TypeError, ValueError):
+            initial_price = None
+
+    if final is not None:
+        try:
+            final_price = (Decimal(final) / Decimal("100")).quantize(Decimal("0.01"))
+        except (TypeError, ValueError):
+            final_price = None
 
     discount = None
     if initial and final is not None and int(initial) > 0:
@@ -100,7 +163,10 @@ def build_price_history_row(app_id: int, details: Dict[str, Any]) -> Tuple:
         date.today(),
         price,
         discount,
-        "BRL",
+        currency,
+        initial_price,
+        final_price,
+        discount,
     )
 
 

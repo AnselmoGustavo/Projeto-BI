@@ -27,6 +27,12 @@ CREATE TABLE IF NOT EXISTS dim_jogos (
     genres TEXT, -- JSON array ou string separada por vírgula
     tags TEXT, -- JSON array ou string separada por vírgula
     platforms TEXT, -- JSON array ou string separada por vírgula
+    short_description TEXT,
+    supported_languages TEXT,
+    categories TEXT,
+    metacritic_score INTEGER,
+    required_age INTEGER,
+    coming_soon BOOLEAN,
     country VARCHAR(10) DEFAULT 'BR', -- Brasil
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -78,6 +84,9 @@ CREATE TABLE IF NOT EXISTS price_history (
     price DECIMAL(10, 2),
     discount DECIMAL(5, 2), -- percentual (0-100)
     currency VARCHAR(3) DEFAULT 'BRL',
+    price_initial DECIMAL(10, 2),
+    price_final DECIMAL(10, 2),
+    discount_percent DECIMAL(5, 2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_price_history UNIQUE(app_id, date)
 );

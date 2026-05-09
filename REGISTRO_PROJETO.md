@@ -1,12 +1,12 @@
 # Registro do Projeto - Steam BI
 
-Arquivo vivo para acompanhar a evolucao do projeto.
-Atualize este documento a cada entrega relevante.
+Documento vivo para registrar arquitetura, operacao e evolucao do projeto.
+Ultima atualizacao: 2026-05-08
 
 ## 1) Resumo Executivo
 - Projeto: Analise de Dados Brasileiros da Steam (Business Intelligence)
-- Objetivo: Construir um Data Warehouse + ETL + Dashboards para suporte a decisao
-- Status atual: Fase 4 em andamento (ETL funcional, validado em piloto e repositório higienizado)
+- Objetivo: Construir um Data Warehouse + pipeline ETL + dashboards para suporte a decisao
+- Status: Fase 4 ativa (ETL operacional, incremental e com enriquecimentos recentes)
 
 ## 2) Escopo das Fases
 - Fase 1: Definicao do negocio e problema (concluida)
@@ -16,194 +16,224 @@ Atualize este documento a cada entrega relevante.
 - Fase 5: Dashboards (pendente)
 - Fase 6: Apresentacao final (pendente)
 
-## 3) Estrutura Tecnica
-### Banco de dados
+## 3) Stack Tecnica
+
+### 3.1 Banco de dados
 - SGBD: PostgreSQL 18
 - Database: steam_dw
 - Schema: steam_dw
 
-### Linguagem e runtime
-- Python 3.14 (system)
+### 3.2 Runtime e bibliotecas
+- Python: 3.14
+- Bibliotecas principais:
+  - psycopg[binary]==3.3.4
+  - requests==2.32.3
+  - python-dotenv==1.0.1
 
-### Dependencias Python (arquivo requirements.txt)
-- psycopg[binary]==3.3.4
-- python-dotenv==1.0.1
-- requests==2.32.3
-
-## 4) Modelagem do Data Warehouse
-Tabelas principais criadas e validadas:
-- dim_jogos
-- player_metrics
-- price_history
-- update_frequency
-- etl_log
-- etl_metadata
-
-Views/funcoes criadas:
-- ultimas_metricas_por_jogo
-- jogos_em_alta
-- limpar_dados_antigos(anos)
-- registrar_etl(...)
-
-Arquivo de referencia do schema:
-- schema_steam_dw.sql
-
-## 5) O que ja foi implementado
-### 5.1 Setup e organizacao
-- Instalacao e configuracao do PostgreSQL
-- Criacao do banco steam_dw
-- Execucao do script schema_steam_dw.sql
-- Validacao de tabelas e relacionamento
-
-### 5.2 Pipeline ETL (Fase 4)
-Arquivos implementados:
+### 3.3 Arquivos principais do ETL
 - config.py
 - main.py
 - extractors/steam_api.py
 - extractors/steamcharts.py
 - transformers/steam_transformer.py
 - loaders/postgres_loader.py
-- .env.example
-- requirements.txt
+- run_etl.ps1
 
-Fluxo atual:
-1. Extracao de app_ids (Steam API / fallback)
-2. Extracao de detalhes do app (Store API)
-3. Extracao de jogadores atuais
-4. Extracao de metricas SteamCharts (quando disponivel)
-5. Transformacao para linhas de DW
-6. Carga com upsert em:
-   - dim_jogos
-   - player_metrics
-   - price_history
-   - update_frequency
-7. Registro de execucao em etl_log
-8. Checkpoint incremental em etl_metadata (last_successful_run, last_app_id_processed, last_date_processed)
+## 4) Fontes de Dados (APIs e scraping)
 
-### 5.3 Compatibilidade tecnica resolvida
-- Driver de banco migrado para psycopg v3 (compatibilidade com Python 3.14)
-- Ajuste de endpoint/fonte para lista de apps devido a indisponibilidade de rota antiga
+### 4.1 Steam API (oficial)
+- Base: https://api.steampowered.com
+- Endpoints usados no projeto:
+  - ISteamUserStats/GetNumberOfCurrentPlayers/v1/ (players atuais)
+  - ISteamChartsService/GetMostPlayedGames/v1/ (ranking de jogos populares)
+- Observacao:
+  - Endpoint de catalogo amplo ISteamApps/GetAppList/v2/ nao respondeu neste ambiente (404)
 
-### 5.4 Higiene do repositório
-- Criação de .gitignore para arquivos sensíveis e gerados localmente
-- Sanitização de .env.example para remover senha real
-- Remoção de __pycache__ e arquivos .pyc do índice do Git
-- Configuração do nome e email globais do Git para commits
+### 4.2 Steam Store API
+- Base: https://store.steampowered.com
+- Endpoint usado:
+  - /api/appdetails?appids={id}&cc=br&l=portuguese
+- Campos extraidos:
+  - nome, developer, publisher, release_date, is_free, genres, platforms
+  - short_description, supported_languages, categories, metacritic_score, required_age, coming_soon
+  - price_overview (preco inicial/final/desconto/moeda)
 
-## 6) Evidencia de validacao (piloto)
-Ultima validacao executada:
-- dim_jogos: 10
-- player_metrics: 10
-- price_history: 10
-- update_frequency: 10
-- etl_log: 6
+### 4.3 SteamCharts (scraping)
+- Base: https://steamcharts.com
+- Endpoint usado:
+  - /app/{app_id}
+- Dados extraidos:
+  - snapshot atual: avg_players, peak_players, gain, percent_gain, peak_24h, all_time_peak
+  - historico mensal: serie de meses (date, avg_players, peak_players, gain, percent_gain)
 
-Checkpoint incremental validado:
+### 4.4 Fallback para catalogo de app_ids
+- Fonte: https://steamspy.com/api.php?request=all
+- Motivo:
+  - ampliar pool de app_ids quando endpoint oficial de catalogo nao esta disponivel
+  - permitir crescimento real do banco em modo incremental
+
+## 5) Modelagem do Data Warehouse
+
+### 5.1 Dimensao
+- dim_jogos (dimensao principal)
+  - chaves e atributos basicos: app_id, name, developer, publisher, release_date, is_free
+  - atributos de classificacao: genres, tags, platforms, categories, supported_languages
+  - atributos de qualidade/enriquecimento: short_description, metacritic_score, required_age, coming_soon
+  - atributos de precificacao atual: price
+
+### 5.2 Fatos
+- player_metrics (fato temporal)
+  - granularidade: app_id + date
+  - medidas: current_players, avg_players, peak_players, peak_24h, all_time_peak, gain, percent_gain
+
+- price_history (fato de preco)
+  - granularidade: app_id + date
+  - medidas: price, discount, currency
+  - enriquecimento recente: price_initial, price_final, discount_percent
+
+- update_frequency (fato de updates)
+  - granularidade: app_id + update_date + build_id
+  - medidas: size_on_disk
+
+### 5.3 Controle e auditoria
+- etl_log: status, volume processado, falhas, mensagem de erro, data_source
+- etl_metadata: checkpoint incremental (last_app_id_processed, total_app_ids, last_successful_run)
+
+### 5.4 Views e funcoes
+- ultimas_metricas_por_jogo
+- jogos_em_alta
+- limpar_dados_antigos(anos)
+- registrar_etl(...)
+
+Arquivo de referencia: schema_steam_dw.sql
+
+## 6) Processo ETL (Extracao, Transformacao, Carga)
+
+### 6.1 Extracao
+1. Buscar pool de app_ids
+2. Selecionar janela incremental com checkpoint em etl_metadata
+3. Para cada app_id:
+   - buscar detalhes do jogo (Store API)
+   - buscar players atuais (Steam API)
+   - buscar dados de SteamCharts (snapshot + historico mensal)
+
+### 6.2 Transformacao
+- Normalizacao de datas (ex.: release_date e meses do SteamCharts)
+- Conversao monetaria de centavos para decimal (price_overview)
+- Derivacao de campos de desconto (discount_percent)
+- Tratamento de tipos e nulos
+- Conversao de listas para texto consolidado (genres/categories/platforms/languages)
+
+### 6.3 Carga
+- Upsert em dim_jogos
+- Upsert em player_metrics (snapshot diario + historico mensal)
+- Upsert em price_history (com detalhes de preco)
+- Upsert em update_frequency
+- Registro operacional em etl_log
+- Atualizacao de checkpoint em etl_metadata
+
+### 6.4 Resiliencia
+- Falha em app especifico nao interrompe lote inteiro (skip por item com warning)
+- Migracoes leves automaticas no loader (ALTER TABLE ... IF NOT EXISTS)
+
+## 7) Operacao e Execucao
+
+### 7.1 Script recomendado
+```powershell
+.\run_etl.ps1 -Mode incremental -Limit 200
+```
+
+### 7.2 Modo rapido (validacao)
+```powershell
+.\run_etl.ps1 -Quick
+```
+
+### 7.3 Execucao direta (sem wrapper)
+```powershell
+.venv\Scripts\python.exe main.py --mode incremental --limit 200
+```
+
+## 8) Snapshot Atual (2026-05-08)
+
+### 8.1 Contagens no DW
+- dim_jogos: 293
+- player_metrics: 602
+- price_history: 293
+- update_frequency: 293
+- etl_log: 18
+
+### 8.2 Checkpoint incremental
 - data_source: steam_api
-- last_app_id_processed: 271590
+- last_successful_run: 2026-05-08 23:37:51
+- last_app_id_processed: 460950
 - last_date_processed: 2026-05-08
-- total_app_ids: 5
+- total_app_ids (ultimo lote): 3
 
-Observacao:
-- Esses valores mudam conforme novas execucoes.
+Observacao: contagens mudam a cada execucao incremental.
 
-## 7) Como executar hoje
-## 7.1 Instalar dependencias
-```powershell
-C:/Users/Usuario/AppData/Local/Python/pythoncore-3.14-64/python.exe -m pip install -r requirements.txt
-```
+## 9) Riscos e Limitacoes
+- Dependencia de endpoints externos e variacao de disponibilidade
+- Mudancas de HTML em fontes de scraping
+- Rate limit e latencia de API
+- Qualidade de dado heterogenea entre fontes
 
-## 7.2 Configurar variaveis de ambiente
-Use .env (baseado em .env.example) ou exporte no terminal:
-```powershell
-$env:DB_HOST='localhost'
-$env:DB_PORT='5432'
-$env:DB_NAME='steam_dw'
-$env:DB_USER='postgres'
-$env:DB_PASSWORD='SUA_SENHA'
-$env:DB_SCHEMA='steam_dw'
-```
+## 10) Pendencias e Proximos Passos
 
-## 7.3 Executar ETL piloto
-```powershell
-C:/Users/Usuario/AppData/Local/Python/pythoncore-3.14-64/python.exe main.py --limit 10 --mode full
-```
+### 10.1 Curto prazo (Fase 4)
+- Evoluir update_frequency com fontes mais especificas de update/build
+- Implementar agendamento diario no Windows Task Scheduler
+- Consolidar monitoramento automatico de falhas (consulta de etl_log)
 
-## 7.4 Executar ETL incremental (recomendado para rotina)
-```powershell
-C:/Users/Usuario/AppData/Local/Python/pythoncore-3.14-64/python.exe main.py --limit 10 --mode incremental
-```
+### 10.2 Medio prazo (Fase 5)
+- Definir ferramenta de BI
+- Construir dashboards operacional, gerencial e estrategico
+- Definir e acompanhar KPIs com serie historica mensal
 
-## 7.5 Validar contagens
-```sql
-SELECT 'dim_jogos' AS tabela, COUNT(*) AS total FROM steam_dw.dim_jogos
-UNION ALL
-SELECT 'player_metrics', COUNT(*) FROM steam_dw.player_metrics
-UNION ALL
-SELECT 'price_history', COUNT(*) FROM steam_dw.price_history
-UNION ALL
-SELECT 'update_frequency', COUNT(*) FROM steam_dw.update_frequency
-UNION ALL
-SELECT 'etl_log', COUNT(*) FROM steam_dw.etl_log;
-```
+## 11) Convencao de Atualizacao
+Ao registrar mudancas relevantes, sempre incluir:
+- Data
+- Tipo de alteracao
+- Arquivos alterados
+- Resultado
+- Impacto
 
-## 7.6 Consultar checkpoint incremental
-```sql
-SELECT data_source, last_successful_run, last_app_id_processed, last_date_processed, total_app_ids
-FROM steam_dw.etl_metadata;
-```
+## 12) Historico de Alteracoes
 
-## 8) Pendencias e proximos passos
-### Curto prazo (Fase 4)
-- Melhorar tratamento de erros/retry por fonte
-- Adicionar agendamento diario (scheduler)
-- Incluir mais campos/qualidade para update_frequency
-- Preparar cobertura para SteamDB (se for viavel no prazo)
-
-### Medio prazo (Fase 5)
-- Definir ferramenta de dashboard
-- Construir paineis operacional, gerencial e estrategico
-- Aplicar Data Storytelling
-
-## 9) Riscos conhecidos
-- Rate limit e mudancas de HTML em scraping
-- Dado incompleto/indisponivel por app
-- Dependencia de endpoints externos
-
-## 10) Convencao de atualizacao deste arquivo
-Sempre que houver alteracao relevante, adicionar uma entrada no historico abaixo:
-
-Modelo:
-- Data:
-- Tipo de alteracao:
-- Arquivos alterados:
-- Resultado:
-- Impacto:
-
-## 11) Historico de alteracoes
-### 2026-05-08
+### 2026-05-08 - Inicializacao do projeto
 - Tipo: Inicializacao de registro continuo
-- Arquivos alterados: multiples arquivos de schema/etl
+- Arquivos alterados: multiplos arquivos de schema/etl
 - Resultado:
   - DW criado e validado
-  - ETL piloto funcional para 4 tabelas principais
-  - Dependencias estabilizadas para Python 3.14
-- Impacto: Projeto pronto para evolucao incremental e dashboarding
+  - ETL piloto funcional para tabelas principais
+- Impacto: base operacional pronta
 
-### 2026-05-08
-- Tipo: Evolucao do ETL para modo incremental
-- Arquivos alterados: main.py, loaders/postgres_loader.py, REGISTRO_PROJETO.md
+### 2026-05-08 - Incremental e checkpoint
+- Tipo: Evolucao ETL incremental
+- Arquivos alterados: main.py, loaders/postgres_loader.py
 - Resultado:
-  - Execucao incremental implementada com checkpoint em etl_metadata
-  - Selecao incremental por rotacao de app_id com base no ultimo processado
-  - Execucoes de validacao concluidas com sucesso
-- Impacto: Pipeline pronto para rotina sem reprocessamento full a cada execucao
+  - checkpoint funcional em etl_metadata
+  - rotacao incremental de app_ids
+- Impacto: rotina sem full reload a cada execucao
 
-### 2026-05-08
-- Tipo: Higiene do repositório
-- Arquivos alterados: .gitignore, .env.example, arquivos de cache removidos do índice
+### 2026-05-08 - Higiene de repositorio
+- Tipo: Segurança e versionamento
+- Arquivos alterados: .gitignore, .env.example, indice git
 - Resultado:
-  - Arquivos sensiveis e artefatos gerados ignorados corretamente
-  - .env.example mantido como template seguro
-  - Repositorio limpo e pronto para novos commits
-- Impacto: Redução de risco de vazamento de credenciais e ruído no versionamento
+  - arquivos sensiveis/caches fora do versionamento
+- Impacto: reducao de risco operacional
+
+### 2026-05-08 - Enriquecimento de dimensao e preco
+- Tipo: Enriquecimento de dados
+- Arquivos alterados: transformers/steam_transformer.py, loaders/postgres_loader.py, schema_steam_dw.sql
+- Resultado:
+  - novos campos em dim_jogos (descricao, idiomas, categorias, metacritic, idade, coming_soon)
+  - novos campos em price_history (price_initial, price_final, discount_percent)
+- Impacto: melhor qualidade para analise de produto e promocao
+
+### 2026-05-08 - Historico mensal SteamCharts
+- Tipo: Evolucao de serie temporal
+- Arquivos alterados: extractors/steamcharts.py, transformers/steam_transformer.py, main.py, loaders/postgres_loader.py
+- Resultado:
+  - ingestao de historico mensal em player_metrics
+  - upsert de metricas completo por (app_id, date)
+- Impacto: suporte a analise de tendencia, sazonalidade e crescimento historico

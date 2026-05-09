@@ -15,9 +15,36 @@ class PostgresLoader:
             user=db_config.user,
             password=db_config.password,
         )
+        self._ensure_dim_jogos_extensions()
+        self._ensure_price_history_extensions()
+
+    def _ensure_dim_jogos_extensions(self) -> None:
+        sql = f"""
+            ALTER TABLE {db_config.schema}.dim_jogos
+            ADD COLUMN IF NOT EXISTS short_description TEXT,
+            ADD COLUMN IF NOT EXISTS supported_languages TEXT,
+            ADD COLUMN IF NOT EXISTS categories TEXT,
+            ADD COLUMN IF NOT EXISTS metacritic_score INTEGER,
+            ADD COLUMN IF NOT EXISTS required_age INTEGER,
+            ADD COLUMN IF NOT EXISTS coming_soon BOOLEAN
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(sql)
+        self.conn.commit()
 
     def close(self) -> None:
         self.conn.close()
+
+    def _ensure_price_history_extensions(self) -> None:
+        sql = f"""
+            ALTER TABLE {db_config.schema}.price_history
+            ADD COLUMN IF NOT EXISTS price_initial DECIMAL(10, 2),
+            ADD COLUMN IF NOT EXISTS price_final DECIMAL(10, 2),
+            ADD COLUMN IF NOT EXISTS discount_percent DECIMAL(5, 2)
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(sql)
+        self.conn.commit()
 
     def upsert_dim_jogos(self, rows: Iterable[Tuple]) -> int:
         rows = list(rows)
@@ -27,8 +54,10 @@ class PostgresLoader:
         sql = f"""
             INSERT INTO {db_config.schema}.dim_jogos (
                 app_id, name, developer, publisher, release_date,
-                price, is_free, genres, tags, platforms
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                price, is_free, genres, tags, platforms,
+                short_description, supported_languages, categories,
+                metacritic_score, required_age, coming_soon
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (app_id) DO UPDATE SET
                 name = EXCLUDED.name,
                 developer = EXCLUDED.developer,
@@ -39,6 +68,12 @@ class PostgresLoader:
                 genres = EXCLUDED.genres,
                 tags = EXCLUDED.tags,
                 platforms = EXCLUDED.platforms,
+                short_description = EXCLUDED.short_description,
+                supported_languages = EXCLUDED.supported_languages,
+                categories = EXCLUDED.categories,
+                metacritic_score = EXCLUDED.metacritic_score,
+                required_age = EXCLUDED.required_age,
+                coming_soon = EXCLUDED.coming_soon,
                 updated_at = CURRENT_TIMESTAMP
         """
 
@@ -58,7 +93,13 @@ class PostgresLoader:
                 peak_24h, all_time_peak, gain, percent_gain
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (app_id, date) DO UPDATE SET
-                current_players = EXCLUDED.current_players
+                current_players = EXCLUDED.current_players,
+                avg_players = EXCLUDED.avg_players,
+                peak_players = EXCLUDED.peak_players,
+                peak_24h = EXCLUDED.peak_24h,
+                all_time_peak = EXCLUDED.all_time_peak,
+                gain = EXCLUDED.gain,
+                percent_gain = EXCLUDED.percent_gain
         """
 
         with self.conn.cursor() as cur:
@@ -73,12 +114,16 @@ class PostgresLoader:
 
         sql = f"""
             INSERT INTO {db_config.schema}.price_history (
-                app_id, date, price, discount, currency
-            ) VALUES (%s, %s, %s, %s, %s)
+                app_id, date, price, discount, currency,
+                price_initial, price_final, discount_percent
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (app_id, date) DO UPDATE SET
                 price = EXCLUDED.price,
                 discount = EXCLUDED.discount,
-                currency = EXCLUDED.currency
+                currency = EXCLUDED.currency,
+                price_initial = EXCLUDED.price_initial,
+                price_final = EXCLUDED.price_final,
+                discount_percent = EXCLUDED.discount_percent
         """
 
         with self.conn.cursor() as cur:
